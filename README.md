@@ -34,9 +34,13 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - lib/ -> contains framework-agnostic business logic
 - app/api/ -> http layer
 
-## Drizzle
+## Database Schema
+- every decision the agent makes should be reconstructable from the database
+
+### Drizzle
 
 - Schema as Code
 - `npx drizzle-kit generate`: generates SQL migration files
 - `npx drizzle-kit migrate`: applies migrations to the database
 - `npx drizzle-kit studio `: opens a visual database browser
+
