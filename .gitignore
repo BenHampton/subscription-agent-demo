@@ -64,7 +64,7 @@ build/
 
 
 # Environment & Secrets
-.env
+.env.local
 .env.*
 !.env.example
 *.pem
@@ -91,7 +91,7 @@ src/generated/prisma
 
 
 # env files (can opt-in for committing if needed)
-.env*
+.env.local
 
 # vercel
 .vercel

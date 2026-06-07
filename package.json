@@ -8,7 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write ./",
-    "format:check": "prettier --check ./"
+    "format:check": "prettier --check ./",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "seed:stripe": "tsx scripts/seed-stripe.ts",
+    "seed:tenants": "tsx scripts/seed-tenants.ts",
+    "seed:knowledge": "tsx scripts/ingest-knowledge.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",

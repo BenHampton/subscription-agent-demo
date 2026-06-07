@@ -27,10 +27,16 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
 ## Project Structure
+
 #### Ports and Adapters (Hexagonal Architecture) pattern.
+
 - business logic in the core, framework adapters at the edges
 - lib/ -> contains framework-agnostic business logic
 - app/api/ -> http layer
 
+## Drizzle
 
-
+- Schema as Code
+- `npx drizzle-kit generate`: generates SQL migration files
+- `npx drizzle-kit migrate`: applies migrations to the database
+- `npx drizzle-kit studio `: opens a visual database browser
