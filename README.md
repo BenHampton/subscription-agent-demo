@@ -35,6 +35,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - app/api/ -> http layer
 
 ## Database Schema
+
 - every decision the agent makes should be reconstructable from the database
 
 ### Drizzle
@@ -43,4 +44,3 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - `npx drizzle-kit generate`: generates SQL migration files
 - `npx drizzle-kit migrate`: applies migrations to the database
 - `npx drizzle-kit studio `: opens a visual database browser
-
