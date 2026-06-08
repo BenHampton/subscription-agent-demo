@@ -7,7 +7,7 @@
 import { ingestKnowledgeBase } from '@/lib/rag/ingest';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ path: '.env.local' });
 
 async function main() {
   console.log('=== Knowledge Base Ingestion ===\n');

@@ -12,9 +12,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "seed:knowledge": "tsx --env-file .env scripts/ingest-knowledge.ts",
-    "seed:stripe": "tsx --env-file .env scripts/seed-stripe.ts",
-    "seed:tenants": "tsx --env-file .env scripts/seed-tenants.ts",
+    "seed:knowledge": "tsx --env-file .env.local scripts/ingest-knowledge.ts",
+    "seed:stripe": "tsx --env-file .env.local scripts/seed-stripe.ts",
+    "seed:tenants": "tsx --env-file .env.local scripts/seed-tenants.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

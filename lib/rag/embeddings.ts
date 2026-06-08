@@ -11,9 +11,9 @@ const VOYAGE_API_URL = 'https://api.voyageai.com/v1/embeddings';
 const VOYAGE_MODEL = process.env.VOYAGE_MODEL || 'voyage-3-lite';
 
 interface VoyageEmbeddingRequest {
-  input: string[]
-  model: string
-  input_type: 'document' | 'query'
+  input: string[];
+  model: string;
+  input_type: 'document' | 'query';
 }
 
 interface VoyageEmbeddingResponse {
