@@ -31,7 +31,7 @@ const MIN_SIMILARITY_SCORE = 0.3;
 export interface RetrievedChunk {
   id: string;
   content: string;
-  sourceTitle: string;
+  sourceDocument: string;
   sectionTitle: string | null;
   similarityScore: number;
 }
