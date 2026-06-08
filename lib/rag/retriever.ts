@@ -73,11 +73,11 @@ export const retrieveRelevantChunks = async (
       content,
       source_document AS "sourceDocument",
       section_title AS "sectionTitle",
-      1 - (embedding::vector(1024) <=> ${embeddingStr}::vector(1024)) AS "similarityScore"
+      1 - (embedding::vector(512) <=> ${embeddingStr}::vector(512)) AS "similarityScore"
     FROM knowledge_documents
-    WHERE 1 - (embedding::vector(1024) <=> ${embeddingStr}::vector(1024)) > ${MIN_SIMILARITY_SCORE}
+    WHERE 1 - (embedding::vector(512) <=> ${embeddingStr}::vector(512)) > ${MIN_SIMILARITY_SCORE}
       ${tenantId ? sql`AND tenant_id = ${tenantId}` : sql``}
-    ORDER BY embedding::vector(1024) <=> ${embeddingStr}::vector(1024) ASC
+    ORDER BY embedding::vector(512) <=> ${embeddingStr}::vector(512) ASC
     LIMIT ${topK}
   `;
 
