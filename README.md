@@ -44,3 +44,16 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - `npx drizzle-kit generate`: generates SQL migration files
 - `npx drizzle-kit migrate`: applies migrations to the database
 - `npx drizzle-kit studio `: opens a visual database browser
+
+- REQUIRED:
+  - Create a function that casts our text column to a vector type.
+    We store embeddings as text because Drizzle doesn't have a native
+    vector column type. This index enables fast similarity search
+    despite that workaround.
+  - in neon sql editor run:
+```
+CREATE INDEX IF NOT EXISTS knowledge_embedding_idx
+ON knowledge_documents
+USING ivfflat ((embedding::vector(1024)) vector_cosine_ops)
+WITH (lists = 100);
+```
