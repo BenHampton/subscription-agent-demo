@@ -256,7 +256,8 @@ export async function processMessage(
       );
 
       // Log policy evaluations for observability (Section 12)
-      console.log(`Guardrails [${toolCall.name}]:`,
+      console.log(
+        `Guardrails [${toolCall.name}]:`,
         evaluations
           .map((e) => `${e.policy}: ${e.result.allowed ? '✓' : '✗'}`)
           .join(', '),

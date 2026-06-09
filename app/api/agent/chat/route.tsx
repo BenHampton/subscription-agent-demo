@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { processMessage } from '@/lib/agent/core';
 import {
   consumePendingAction,
   cancelPendingAction,
-} from "@/lib/guardrails/confirmation";
-import { toolRegistry } from "@/lib/tools/registry";
+} from '@/lib/guardrails/confirmation';
+import { toolRegistry } from '@/lib/tools/registry';
+import {
+  createConversation,
+  loadHistory,
+  storeMessage,
+  updateConversationStatus,
+} from '@/lib/agent/memory';
 
 // PURPOSE: The HTTP entry point for the agent
 //
@@ -56,8 +63,7 @@ export async function POST(req: NextRequest) {
 
     const request = parsed.data;
 
-
-
+    const tenant = { id: 'default', companyName: 'Demo' }; // TODO UPDATE 'tenant' form ^^
 
     // Handle confirmation of a pending action
     // User confirmed a pending action → execute it directly
@@ -66,11 +72,12 @@ export async function POST(req: NextRequest) {
 
       if (!pending) {
         return NextResponse.json({
-          message: "There's no pending action to confirm. It may have " +
-              "expired. Could you tell me what you'd like to do?",
+          message:
+            "There's no pending action to confirm. It may have " +
+            "expired. Could you tell me what you'd like to do?",
           conversationId: request.conversationId,
           requiresConfirmation: false,
-          outcome: "continue",
+          outcome: 'continue',
           confidence: 0.8,
         });
       }
@@ -78,11 +85,13 @@ export async function POST(req: NextRequest) {
       // Execute the pending action
       // Note: In the multi-tenant version (Section 15), pass the
       // tenant-scoped context here as the third argument.
-      const tenant = {id: "default", companyName: "Demo"} // TODO UPDATE 'tenant' form ^^
       const { result, durationMs } = await toolRegistry.execute(
-          pending.toolName,
-          pending.args,
-          { tenantId: tenant?.id || "default", tenantName: tenant?.companyName || "Demo" }
+        pending.toolName,
+        pending.args,
+        {
+          tenantId: tenant?.id || 'default',
+          tenantName: tenant?.companyName || 'Demo',
+        },
       );
 
       const parsedResult = JSON.parse(result);
@@ -90,11 +99,11 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         message: success
-            ? `Done! ${pending.description} has been processed successfully.`
-            : `I wasn't able to complete that: ${parsedResult.error}`,
+          ? `Done! ${pending.description} has been processed successfully.`
+          : `I wasn't able to complete that: ${parsedResult.error}`,
         conversationId: request.conversationId,
         requiresConfirmation: false,
-        outcome: success ? "resolved" : "error",
+        outcome: success ? 'resolved' : 'error',
         confidence: 0.95,
       });
     }
@@ -105,16 +114,41 @@ export async function POST(req: NextRequest) {
       // Fall through to processMessage — let Claude handle the "no"
     }
 
-    // Call the agentic core
-    // In Section 10 (Multi-turn Memory), we'll load conversation
-    // history from the database here. For now, each request is
-    // stateless (no history).
-    const { response, toolCalls } = await processMessage({
-      message: request.message,
-      conversationId: request.conversationId ?? null,
-      customerEmail: request.customerEmail,
-      confirmAction: request.confirmAction,
-    });
+    // Load or create conversation
+    let conversationId = request.conversationId;
+    let history: Anthropic.MessageParam[] = [];
+
+    if (conversationId) {
+      // Existing conversation — load history
+      history = await loadHistory(conversationId);
+    } else {
+      // New conversation — create one
+      conversationId = await createConversation(
+        tenant?.id,
+        request.customerEmail,
+      );
+    }
+
+    // Store the user's message
+    await storeMessage(conversationId, 'user', request.message);
+
+    // Call the agent with conversation history
+    const { response, toolCalls } = await processMessage(
+      { ...request, conversationId },
+      history,
+    );
+
+    // Store the agent's response
+    await storeMessage(conversationId, 'assistant', response.message);
+
+    // Update conversation status if resolved or escalated
+    if (response.outcome === 'resolved' || response.outcome === 'escalated') {
+      await updateConversationStatus(
+        conversationId,
+        response.outcome,
+        response.message.substring(0, 500), // Store first 500 chars as resolution
+      );
+    }
 
     // Log for observability (Section 12 will formalize this)
     console.log(`Agent response:`, {
