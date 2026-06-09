@@ -1,5 +1,8 @@
 select current_database();
 
+
+-- INIT
+
 -- CREATE EXTENSION IF NOT EXISTS vector;
 
     -- Verify tables created
@@ -29,3 +32,23 @@ SELECT id, status, created_at
 FROM conversations
 ORDER BY created_at DESC
 LIMIT 1;
+
+
+-- TRACE
+
+SELECT count(*) FROM agent_traces;
+
+-- Query raw data behind the metrics endpoint.
+-- Shows every agent decision with its confidence score, duration, and outcome.
+SELECT
+    outcome,
+    confidence_score,
+    total_duration_ms,
+    model_used,
+    substring(user_input, 1, 50) as question,
+    substring(agent_response, 1, 80) as answer
+FROM agent_traces
+ORDER BY created_at DESC
+LIMIT 10;
+
+

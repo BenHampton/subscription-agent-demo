@@ -14,6 +14,7 @@ import {
   updateConversationStatus,
 } from '@/lib/agent/memory';
 import { buildFallbackResponse } from '@/lib/agent/fallback';
+import { logTrace } from '@/lib/eval/logger';
 
 // PURPOSE: The HTTP entry point for the agent
 //
@@ -47,7 +48,8 @@ const RequestSchema = z.object({
 // Route Handler
 
 export async function POST(req: NextRequest) {
-  let conversationId = 'unknown';
+  const startTime = Date.now();
+  let conversationId: string | null = null;
 
   try {
     // Parse and validate the request body
@@ -65,9 +67,13 @@ export async function POST(req: NextRequest) {
     }
 
     const request = parsed.data;
-    conversationId = request.conversationId || 'unknown';
+    conversationId = request.conversationId || null;
 
-    const tenant = { id: 'default', companyName: 'Demo' }; // TODO UPDATE 'tenant' form ^^
+    const tenant = {
+      // TODO UPDATE 'tenant' form ^^
+      id: 'default',
+      companyName: 'Demo',
+    };
 
     // Handle confirmation of a pending action
     // User confirmed a pending action → execute it directly
@@ -93,8 +99,8 @@ export async function POST(req: NextRequest) {
         pending.toolName,
         pending.args,
         {
-          tenantId: tenant?.id || 'default',
-          tenantName: tenant?.companyName || 'Demo',
+          tenantId: tenant.id,
+          tenantName: tenant.companyName,
         },
       );
 
@@ -119,7 +125,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Load or create conversation
-    // let conversationId = request.conversationId;
     let history: Anthropic.MessageParam[] = [];
 
     if (conversationId) {
@@ -128,7 +133,7 @@ export async function POST(req: NextRequest) {
     } else {
       // New conversation — create one
       conversationId = await createConversation(
-        tenant?.id,
+          undefined, // tenant?.id, //TODO implemented in section 15
         request.customerEmail,
       );
     }
@@ -154,15 +159,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Log for observability (Section 12 will formalize this)
+    // Log the trace (fire-and-forget — don't await)
+    const totalDuration = Date.now() - startTime;
+    logTrace({
+      conversationId: response.conversationId,
+      userInput: request.message,
+      response,
+      toolCalls,
+      totalDurationMs: totalDuration,
+      model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-6',
+    }).catch((err) => console.error('Trace failed:', err)); // Swallow logging errors silently
+
+    // Development logging — formalized trace is logged above via logTrace
     console.log(`Agent response:`, {
       outcome: response.outcome,
       confidence: response.confidence,
       toolCalls: toolCalls.map((t) => t.tool),
-      durationMs: toolCalls.reduce((sum, t) => sum + t.durationMs, 0),
+      durationMs: totalDuration,
     });
 
-    return NextResponse.json(response);
+    // Add timing header for debugging
+    const res = NextResponse.json(response);
+    res.headers.set('X-Agent-Duration-Ms', totalDuration.toString());
+    res.headers.set('X-Agent-Tool-Calls', toolCalls.length.toString());
+
+    return res;
   } catch (error) {
     // Graceful fallback:
     // the customer always gets a response, even when something breaks.
@@ -174,7 +195,7 @@ export async function POST(req: NextRequest) {
 
     const fallback = buildFallbackResponse(
       error instanceof Error ? error : new Error('Unknown error'),
-      conversationId,
+        conversationId || 'unknown',
     );
 
     // Still return 200 — the response IS the error handling.

@@ -85,7 +85,7 @@ export async function processMessage(
   // This context is passed to every tool handler so they can
   // access tenant-scoped data without it being in Claude's args.
   const toolContext: ToolContext = {
-    tenantId: tenant?.id || 'default',
+    tenantId: tenant?.id || '',
     tenantName: tenant?.companyName || 'Demo Company',
   };
 
@@ -259,7 +259,7 @@ export async function processMessage(
       console.log(
         `Guardrails [${toolCall.name}]:`,
         evaluations
-          .map((e) => `${e.policy}: ${e.result.allowed ? '✓' : '✗'}`)
+          .map((e) => `${e.policy}: ${e.result.allowed ? 'ALLOWED' : 'NOT-ALLOWED'}`)
           .join(', '),
       );
 
