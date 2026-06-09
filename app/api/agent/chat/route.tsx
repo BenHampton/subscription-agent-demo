@@ -13,6 +13,7 @@ import {
   storeMessage,
   updateConversationStatus,
 } from '@/lib/agent/memory';
+import { buildFallbackResponse } from '@/lib/agent/fallback';
 
 // PURPOSE: The HTTP entry point for the agent
 //
@@ -46,6 +47,8 @@ const RequestSchema = z.object({
 // Route Handler
 
 export async function POST(req: NextRequest) {
+  let conversationId = 'unknown';
+
   try {
     // Parse and validate the request body
     const body = await req.json();
@@ -62,20 +65,21 @@ export async function POST(req: NextRequest) {
     }
 
     const request = parsed.data;
+    conversationId = request.conversationId || 'unknown';
 
     const tenant = { id: 'default', companyName: 'Demo' }; // TODO UPDATE 'tenant' form ^^
 
     // Handle confirmation of a pending action
     // User confirmed a pending action → execute it directly
-    if (request.confirmAction && request.conversationId) {
-      const pending = consumePendingAction(request.conversationId);
+    if (request.confirmAction && conversationId) {
+      const pending = consumePendingAction(conversationId);
 
       if (!pending) {
         return NextResponse.json({
           message:
             "There's no pending action to confirm. It may have " +
             "expired. Could you tell me what you'd like to do?",
-          conversationId: request.conversationId,
+          conversationId: conversationId,
           requiresConfirmation: false,
           outcome: 'continue',
           confidence: 0.8,
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
         message: success
           ? `Done! ${pending.description} has been processed successfully.`
           : `I wasn't able to complete that: ${parsedResult.error}`,
-        conversationId: request.conversationId,
+        conversationId: conversationId,
         requiresConfirmation: false,
         outcome: success ? 'resolved' : 'error',
         confidence: 0.95,
@@ -109,13 +113,13 @@ export async function POST(req: NextRequest) {
     }
 
     // User declined a pending action → clear it, fall through to processMessage
-    if (request.confirmAction === false && request.conversationId) {
-      cancelPendingAction(request.conversationId);
+    if (request.confirmAction === false && conversationId) {
+      cancelPendingAction(conversationId);
       // Fall through to processMessage — let Claude handle the "no"
     }
 
     // Load or create conversation
-    let conversationId = request.conversationId;
+    // let conversationId = request.conversationId;
     let history: Anthropic.MessageParam[] = [];
 
     if (conversationId) {
@@ -160,19 +164,21 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    // Catch-all error handler
-    // In production, this would log to an error tracking service
-    // (Sentry, Datadog). For now, console.error is sufficient.
+    // Graceful fallback:
+    // the customer always gets a response, even when something breaks.
+    // The fallback categorizes the error and returns an appropriate message.
+    //
+    // In production, also send to an error tracking service
+    // (Sentry, Datadog) for alerting and deduplication.
     console.error('Agent error:', error);
 
-    return NextResponse.json(
-      {
-        error: 'An internal error occurred',
-        message:
-          "I'm experiencing a temporary issue. Please try again " +
-          'in a moment, or contact support directly.',
-      },
-      { status: 500 },
+    const fallback = buildFallbackResponse(
+      error instanceof Error ? error : new Error('Unknown error'),
+      conversationId,
     );
+
+    // Still return 200 — the response IS the error handling.
+    // A 500 means our error handling itself failed.
+    return NextResponse.json(fallback);
   }
 }
