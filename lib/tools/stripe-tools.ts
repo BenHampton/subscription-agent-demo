@@ -16,7 +16,7 @@ import {
 // validates at the API level — belt AND suspenders.
 
 const LookupArgs = z.object({
-  email: z.string().email('Invalid email format'),
+  email: z.email({ error: "Invalid email format" }),
 });
 
 const CustomerIdArgs = z.object({

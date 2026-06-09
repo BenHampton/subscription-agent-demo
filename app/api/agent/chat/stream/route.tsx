@@ -27,7 +27,7 @@ const RequestSchema = z.object({
         .min(1, "Message cannot be empty")
         .max(10000, "Message too long"),
     conversationId: z.string().nullable().optional(),
-    customerEmail: z.string().email().optional(),
+    customerEmail: z.email().optional(),
     confirmAction: z.boolean().optional(),
 });
 
