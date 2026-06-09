@@ -3,6 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { toolRegistry } from '@/lib/tools/registry';
 import { buildSystemPrompt } from './system-prompt';
 import { AgentRequest, AgentResponse, ToolContext, TenantInfo } from './types';
+import { evaluatePolicies } from '@/lib/guardrails/policies';
+import {
+  setPendingAction,
+  consumePendingAction,
+} from '@/lib/guardrails/confirmation';
 
 // PURPOSE: The agentic loop, the core engine of the entire system.
 //
@@ -222,42 +227,117 @@ export async function processMessage(
       break;
     }
 
-    // CHECK GUARDRAILS
+    // ---- CHECK GUARDRAILS ----
+    // Before executing any tool, run it through the policy engine.
+    // The policy engine checks business rules (dollar limits, required
+    // fields, etc.) and decides whether to allow, deny, or require
+    // confirmation.
     //
-    // Before executing any tool, check if it requires confirmation.
-    // If so, return early with a confirmation request.
+    // NOTE: This uses the global evaluatePolicies with environment
+    // variable limits. Section 15 upgrades this to per-tenant
+    // policies via evaluatePoliciesForTenant.
     //
-    // This is where destructive operations get intercepted.
-    // The agent says "I want to issue a refund of $50" but we
-    // DON'T execute it yet — we ask the user to confirm first.
-    // The user's confirmation comes back in the next request
-    // with confirmAction: true.
+    // This replaces the simple requiresConfirmation check with a
+    // full policy evaluation that:
+    //   1. Checks ALL policies (not just a boolean flag)
+    //   2. Returns structured reasons (for the customer AND audit log)
+    //   3. Differentiates between "deny" and "escalate" and "confirm"
+    //   4. Logs every evaluation for observability
 
     for (const toolCall of toolUseBlocks) {
+      const args = toolCall.input as Record<string, unknown>;
+
+      // Evaluate all policies for this tool call
+      // After Section 15, upgrade to:
+      //   tenant ? evaluatePoliciesForTenant(name, args, tenant) : evaluatePolicies(name, args)
+      const { result: policyResult, evaluations } = evaluatePolicies(
+        toolCall.name,
+        args,
+      );
+
+      // Log policy evaluations for observability (Section 12)
+      console.log(`Guardrails [${toolCall.name}]:`,
+        evaluations
+          .map((e) => `${e.policy}: ${e.result.allowed ? '✓' : '✗'}`)
+          .join(', '),
+      );
+
+      // DENIED — block the tool call entirely
+      if (!policyResult.allowed) {
+        const textBlocks = response.content.filter(
+          (block): block is Anthropic.TextBlock => block.type === 'text',
+        );
+
+        if (policyResult.action === 'escalate') {
+          // Auto-escalate: execute the escalation tool on behalf of the agent
+          return {
+            response: {
+              message:
+                policyResult.reason +
+                " I'm connecting you with a team member who can help with this.",
+              conversationId: request.conversationId || generateId(),
+              requiresConfirmation: false,
+              outcome: 'escalated',
+              confidence: 0.9,
+            },
+            toolCalls: toolCallTraces,
+          };
+        }
+
+        // Hard deny: tell Claude the tool call was blocked
+        // and let it try a different approach
+        messages.push({ role: 'assistant', content: response.content });
+        messages.push({
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: toolCall.id,
+              content: JSON.stringify({
+                error: `BLOCKED BY POLICY: ${policyResult.reason}`,
+                suggestion: 'Try a different approach or escalate.',
+              }),
+              is_error: true,
+            },
+          ],
+        });
+        continue; // Let Claude try again with the denial feedback
+      }
+
+      // CONFIRMATION REQUIRED — store pending action and ask user
       if (
-        toolRegistry.requiresConfirmation(toolCall.name) &&
+        (policyResult.action === 'confirm' ||
+          toolRegistry.requiresConfirmation(toolCall.name)) &&
         !request.confirmAction
       ) {
-        // Extract any text Claude said before the tool call
         const textBlocks = response.content.filter(
           (block): block is Anthropic.TextBlock => block.type === 'text',
         );
         const preText = textBlocks.map((b) => b.text).join('\n');
 
+        // Store the pending action for later execution
+        const convId = request.conversationId || generateId();
+        setPendingAction({
+          toolName: toolCall.name,
+          args,
+          description: describeToolAction(toolCall.name, args),
+          proposedAt: new Date(),
+          conversationId: convId,
+          guardrailReason:
+            policyResult.reason || 'Action requires confirmation',
+        });
+
         return {
           response: {
             message:
               preText ||
-              `I'd like to perform the following action. Please confirm.`,
-            conversationId: request.conversationId || generateId(),
+              "I'd like to perform the following action. Please confirm.",
+            conversationId: convId,
             requiresConfirmation: true,
             pendingAction: {
               tool: toolCall.name,
-              description: describeToolAction(
-                toolCall.name,
-                toolCall.input as Record<string, unknown>,
-              ),
-              args: toolCall.input as Record<string, unknown>,
+              description: describeToolAction(toolCall.name, args),
+              args,
             },
             outcome: 'needs_confirm',
             confidence: 0.9,
