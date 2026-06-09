@@ -25,5 +25,7 @@ SELECT id, source_document, section_title, chunk_index, length(content) as conte
 FROM knowledge_documents
 ORDER BY source_document, chunk_index;
 
-
-
+SELECT id, status, created_at
+FROM conversations
+ORDER BY created_at DESC
+LIMIT 1;
