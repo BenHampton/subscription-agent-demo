@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 // Zod schema for runtime validation
 const KnowledgeSearchArgs = z.object({
-  query: z.string().min(1, {error: 'Search query cannot be empty'}),
+  query: z.string().min(1, { error: 'Search query cannot be empty' }),
 });
 
 export const knowledgeSearchTool: RegisteredTool = {

@@ -127,7 +127,7 @@ export async function getSubscription(
       customer: customerId,
       status: 'all',
       limit: 1,
-      expand: ['data.items.data.price.product'],
+      // expand: ['data.items.data.price.product'],
     });
 
     if (subscriptions.data.length === 0) {
@@ -138,7 +138,9 @@ export async function getSubscription(
       };
     }
 
-    const sub = subscriptions.data[0];
+    const sub = await stripe.subscriptions.retrieve(subscriptions.data[0].id, {
+      expand: ['items.data.price.product'],
+    });
     const item = sub.items.data[0];
     const price = item?.price;
     const product = price?.product as Stripe.Product;
@@ -181,7 +183,7 @@ export async function getInvoices(
     const invoices = await stripe.invoices.list({
       customer: customerId,
       limit,
-      expand: ['data.payments.data.payment.payment_intent'],
+      expand: ['data.payments'],
     });
 
     return {
