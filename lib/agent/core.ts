@@ -41,6 +41,13 @@ interface ToolCallTrace {
   durationMs: number;
 }
 
+interface UsageWithCache {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+}
+
 if (!process.env.ANTHROPIC_API_KEY) {
   throw new Error(
     'ANTHROPIC_API_KEY is not set. ' +
@@ -212,9 +219,9 @@ export async function processMessage(
     //
     // A healthy agent should show high cache_read and low cache_creation
     // after the first few requests.
-    const usage = response.usage;
-    const cacheHit = (usage as any).cache_read_input_tokens || 0;
-    const cacheCreation = (usage as any).cache_creation_input_tokens || 0;
+    const usage = response.usage as unknown as UsageWithCache;
+    const cacheHit = usage.cache_read_input_tokens || 0;
+    const cacheCreation = usage.cache_creation_input_tokens || 0;
 
     if (cacheHit > 0) {
       console.log(`💾 Cache HIT: ${cacheHit} tokens read from cache`);
