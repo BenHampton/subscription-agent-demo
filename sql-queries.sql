@@ -1,5 +1,5 @@
+SELECT version();
 select current_database();
-
 
 -- INIT
 

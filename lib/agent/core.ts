@@ -152,13 +152,75 @@ export async function processMessage(
     // For example, Claude might say "Let me look that up for you"
     // (text) AND call lookup_customer (tool_use) in the same response.
 
+    // PROMPT CACHING: System prompt as content blocks
+    //
+    // Previously: system buildSystemPrompt() (a plain string)
+    // const response = await anthropic.messages.create({
+    //   model: MODEL,
+    //   max_tokens: 4096,
+    //   system: buildSystemPrompt(tenant),
+    //   messages,
+    //   tools: toolRegistry.getDefinitions(),
+    // });
+    // Now: system as an array with cache_control on the last block. (updated below)
+    //
+    // HOW IT WORKS:
+    // Anthropic's cache is a PREFIX cache. It hashes everything
+    // in order: tools → system → messages. If the first N bytes
+    // match a cached entry, those tokens are served from cache.
+    //
+    // By placing cache_control on the system prompt, we're saying:
+    // "Cache everything from the start of the request through the
+    // end of the system prompt." Since our system prompt is identical
+    // across all conversations, every request after the first gets
+    // a cache hit on ~2000 tokens.
+    //
+    // COST MATH (per request):
+    //   Without caching: 3,500 tokens × $3/1M = $0.0105
+    //   First request:   3,500 tokens × $3.75/1M = $0.013 (25% write surcharge)
+    //   Subsequent:      3,500 tokens × $0.30/1M = $0.001 (90% savings)
+    //
+    // For a 10-turn conversation with 4 iterations per turn:
+    //   Without caching: 40 calls × $0.0105 = $0.42
+    //   With caching:    1 × $0.013 + 39 × $0.001 = $0.052
+    //   Savings: 88%
+
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 4096,
-      system: buildSystemPrompt(tenant),
+      system: [
+      {
+        type: "text",
+        text: buildSystemPrompt(),
+        cache_control: { type: "ephemeral" },
+        // "ephemeral" = 5-minute TTL (default, free)
+        // For longer sessions, use: { type: "ephemeral", ttl: "1h" }
+        // (1-hour cache costs slightly more but ensures cache hits
+        // across an entire support session)
+      },
+    ],
       messages,
       tools: toolRegistry.getDefinitions(),
     });
+
+    // Track cache performance
+    //
+    // The response includes cache metrics we can log for observability.
+    // These fields aren't in the base Usage type yet — they're added
+    // when prompt caching is active. Using (as any) for just these
+    // fields until Anthropic's SDK types catch up.
+    //
+    // A healthy agent should show high cache_read and low cache_creation
+    // after the first few requests.
+    const usage = response.usage;
+    const cacheHit = (usage as any).cache_read_input_tokens || 0;
+    const cacheCreation = (usage as any).cache_creation_input_tokens || 0;
+
+    if (cacheHit > 0) {
+      console.log(`💾 Cache HIT: ${cacheHit} tokens read from cache`);
+    } else if (cacheCreation > 0) {
+      console.log(`💾 Cache WRITE: ${cacheCreation} tokens written to cache (first request)`);
+    }
 
     // Process the response
     //
