@@ -1,0 +1,299 @@
+{
+  "info": {
+    "_postman_id": "ae626002-c79a-4293-a5e7-98a542bf9cbb",
+    "name": "Agentic",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "4683097"
+  },
+  "item": [
+    {
+      "name": "subscription-agent-demo",
+      "item": [
+        {
+          "name": "Stripe",
+          "item": [
+            {
+              "name": "stripe",
+              "request": {
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    {
+                      "key": "username",
+                      "value": "STRIPE_SECRET_KEY",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "https://api.stripe.com/v1/customers?limit=1",
+                  "protocol": "https",
+                  "host": [
+                    "api",
+                    "stripe",
+                    "com"
+                  ],
+                  "path": [
+                    "v1",
+                    "customers"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "1"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Voyage-API",
+          "item": [
+            {
+              "name": "voyageai - embeddings",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "VOYAGE_API_KEY",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "content-type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"input\": [\"test embedding\"],\r\n    \"model\": \"voyage-3-lite\"\r\n  }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "https://api.voyageai.com/v1/embeddings",
+                  "protocol": "https",
+                  "host": [
+                    "api",
+                    "voyageai",
+                    "com"
+                  ],
+                  "path": [
+                    "v1",
+                    "embeddings"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Anthropic",
+          "item": [
+            {
+              "name": "anthropic - messages",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "TODO_ANTHROPIC_API_KEY",
+                    "type": "text"
+                  },
+                  {
+                    "key": "anthropic-version",
+                    "value": "2023-06-01",
+                    "type": "text"
+                  },
+                  {
+                    "key": "content-type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"model\": \"claude-opus-4-6\",\r\n    \"max_tokens\": 50,\r\n    \"messages\": [\r\n        {\r\n            \"role\": \"user\",\r\n            \"content\": \"Say hello\"\r\n        }\r\n    ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "https://api.anthropic.com/v1/messages",
+                  "protocol": "https",
+                  "host": [
+                    "api",
+                    "anthropic",
+                    "com"
+                  ],
+                  "path": [
+                    "v1",
+                    "messages"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Test 5: Destructive action (should trigger confirmation)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"message\": \"I am carol@example.com and I want to cancel my subscription\"\r\n}"
+        },
+        "url": {
+          "raw": "{{domain}}/api/agent/chat",
+          "host": [
+            "{{domain}}"
+          ],
+          "path": [
+            "api",
+            "agent",
+            "chat"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test 4: Multi-step operation (lookup + invoices + knowledge base)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"message\": \"I am bob@example.com and I think I was charged twice\"\r\n}"
+        },
+        "url": {
+          "raw": "{{domain}}/api/agent/chat",
+          "host": [
+            "{{domain}}"
+          ],
+          "path": [
+            "api",
+            "agent",
+            "chat"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test 3: Policy question (RAG retrieval)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"message\": \"What is your refund policy?\"\r\n}"
+        },
+        "url": {
+          "raw": "{{domain}}/api/agent/chat",
+          "host": [
+            "{{domain}}"
+          ],
+          "path": [
+            "api",
+            "agent",
+            "chat"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test 2: Customer lookup (1 tool call)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"message\": \"My email is alice@example.com, can you check my account?\"\r\n}"
+        },
+        "url": {
+          "raw": "{{domain}}/api/agent/chat",
+          "host": [
+            "{{domain}}"
+          ],
+          "path": [
+            "api",
+            "agent",
+            "chat"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test 1: Simple greeting (no tools needed)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"message\": \"Hi, I need help with my subscription\"\r\n}"
+        },
+        "url": {
+          "raw": "{{domain}}/api/agent/chat",
+          "host": [
+            "{{domain}}"
+          ],
+          "path": [
+            "api",
+            "agent",
+            "chat"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
